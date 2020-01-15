@@ -14,7 +14,7 @@ namespace BirthdayBot
 
         public TelegramMessageHandler(TelegramApi telegramApi, Birthdays birthdays)
         {
-            _storedIds = JsonHelper.DeserializeFile("messages.json", new LimitedStore<int>());
+            _storedIds = JsonHelper.DeserializeFile("messages.json", new LimitedStore<int>(25));
             _telegramApi = telegramApi;
             _birthdays = birthdays;
         }
