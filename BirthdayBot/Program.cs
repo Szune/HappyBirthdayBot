@@ -112,7 +112,7 @@ namespace BirthdayBot
                     ResetAlertsIfNewDay(date);
                     _birthdays.CongratulateTheUngratulated(date);
                     _messagingApi.Fetch();
-                    token.WaitHandle.WaitOne(5000);
+                    token.WaitHandle.WaitOne(Config.MessageLoopSleepTimeMs);
                 }
             }
             catch (OperationCanceledException)
@@ -147,6 +147,7 @@ namespace BirthdayBot
         {
             Config = JsonHelper.DeserializeFile(ConfigFile, new BirthdayConfig
             {
+                MessageLoopSleepTimeMs = 5000,
                 Token = "Unknown",
                 ChatId = "Unknown",
                 TimeZoneId = "Central European Standard Time",
@@ -164,6 +165,7 @@ namespace BirthdayBot
             JsonHelper.SerializeToFile(ConfigFile,
                 new BirthdayConfig
                 {
+                    MessageLoopSleepTimeMs = Config.MessageLoopSleepTimeMs,
                     Token = Config.Token,
                     ChatId = Config.ChatId,
                     TimeZoneId = _timeZoneId,

@@ -29,14 +29,14 @@ namespace BirthdayBot
         {
             foreach (var birth in _birthdays.Where(birth => IsBirthday(date, birth)))
             {
-                if (_messagingApi.Send($"Happy birthday, {birth.Human}!"))
+                if (_messagingApi.Send($"Happy birthday, @{birth.Human}!"))
                 {
                     birth.SetAlert();
                     Save();
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to happy birthday {birth.Human}");
+                    Console.WriteLine($"Failed to happy birthday @{birth.Human}");
                 }
             }
         }
