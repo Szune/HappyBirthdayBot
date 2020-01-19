@@ -1,8 +1,9 @@
 ﻿using System;
 using System.IO;
 using System.Text.Json;
+using BirthdayBot.JsonConverters;
 
-namespace BirthdayBot
+namespace BirthdayBot.IO
 {
     public static class JsonHelper
     {

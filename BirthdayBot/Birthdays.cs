@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using BirthdayBot.Interfaces;
+using BirthdayBot.IO;
 
 namespace BirthdayBot
 {
@@ -10,11 +12,13 @@ namespace BirthdayBot
         private const string BirthdaysFile = "birthdays.json";
         private List<Birthday> _birthdays;
         private readonly IMessagingApi _messagingApi;
+        private readonly IFileWriter _fileWriter;
 
-        private Birthdays(List<Birthday> birthdays, IMessagingApi messagingApi)
+        public Birthdays(List<Birthday> birthdays, IMessagingApi messagingApi, IFileWriter fileWriter)
         {
             _birthdays = birthdays;
             _messagingApi = messagingApi;
+            _fileWriter = fileWriter;
         }
         
         public void ResetAlerts()
@@ -47,12 +51,12 @@ namespace BirthdayBot
             {
                 new Birthday("TestHuman", new DateTime(1990,01,01))
             });
-            return new Birthdays(birthdays, messagingApi);
+            return new Birthdays(birthdays, messagingApi, new FileWriter());
         }
         
         public void Save()
         {
-            JsonHelper.SerializeToFile(BirthdaysFile, _birthdays);
+            _fileWriter.SerializeToFile(BirthdaysFile, _birthdays);
         }
         
         private static bool IsBirthday(DateTime date, Birthday birthday)

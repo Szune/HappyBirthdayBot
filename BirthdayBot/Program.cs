@@ -1,6 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
+using BirthdayBot.Extensions;
+using BirthdayBot.Interfaces;
+using BirthdayBot.IO;
+using BirthdayBot.Telegram;
 
 namespace BirthdayBot
 {
@@ -10,14 +15,23 @@ namespace BirthdayBot
         public static BirthdayConfig Config;
         private static DateTime _lastResetDateLocalTime;
         private static TimeZoneInfo _tz;
+
         private static string _timeZoneId;
+        private static Commands _commands;
+        
+        /* admins */
+        private static IAdminManager _adminManager;
+
         /* birthdays */
         private static Birthdays _birthdays;
+
         /* apis */
         private static TelegramApi _messagingApi;
-        /* exit handlers */
-        private static readonly List<IExitHandler> _exitHandlers = new List<IExitHandler>();
 
+        /* exit handlers */
+        private static readonly List<IExitHandler> ExitHandlers = new List<IExitHandler>();
+        private static readonly object Lock = new object();
+        private static bool _onExitCalled;
         private static CancellationTokenSource _cts;
 
         /* constants */
@@ -29,20 +43,20 @@ namespace BirthdayBot
             PreStart();
             Start();
         }
-        
+
         private static void Load()
         {
             Console.WriteLine("Dates are specified in the format MM-DD");
             LoadConfig();
-            
+
             _messagingApi = new TelegramApi(Config.Token, Config.ChatId);
             Console.WriteLine($"Using {_messagingApi.GetType().Name}");
-            
+
             _birthdays = Birthdays.Load(_messagingApi);
-            var messageHandler = new TelegramMessageHandler(_messagingApi, _birthdays);
+            var messageHandler = new TelegramMessageHandler(_messagingApi, _birthdays, _adminManager);
             _messagingApi.AddHandler(messageHandler);
-            _exitHandlers.Add(_birthdays);
-            _exitHandlers.Add(messageHandler);
+            ExitHandlers.Add(_birthdays);
+            ExitHandlers.Add(messageHandler);
         }
 
         private static void PreStart()
@@ -51,7 +65,7 @@ namespace BirthdayBot
             Console.WriteLine($"Last reset on {_lastResetDateLocalTime:yyyy-MM-dd}");
             ResetAlertsIfNewDay(date);
         }
-        
+
         private static void Start()
         {
             _cts = new CancellationTokenSource();
@@ -60,45 +74,32 @@ namespace BirthdayBot
             thread.Start();
             while (true)
             {
-                Console.WriteLine("To add an admin enter admin add username");
-                Console.WriteLine("To remove an admin enter admin delete username");
-                Console.WriteLine("Enter q to quit");
+                Console.WriteLine("-----------------------------------------");
+                Console.WriteLine("Console commands: admin add/delete username, timezone list/file, q [close the bot]");
+                Console.WriteLine("-----------------------------------------");
                 var text = Console.ReadLine()?.Trim() ?? "";
 
-                if (text.StartsWith("admin"))
-                {
-                    ManageAdmins(text);
+                if (DispatchCommand(text))
                     continue;
-                }
-                if (text.ToLower() != "q") 
+                if (text.ToLower() != "q")
                     continue;
-                
+
                 // quit
                 OnExit();
                 break;
             }
         }
 
-        private static void ManageAdmins(string text)
+        private static bool DispatchCommand(string text)
         {
-            var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 3)
-            {
-                return;
-            }
-
-            if (parts[0].Trim().ToUpperInvariant() != "ADMIN")
-            {
-                return;
-            }
-
-            if (parts[1].Trim().ToUpperInvariant() == "ADD")
-                Config.Admins.Add(parts[2].Trim().ToUpperInvariant());
-            else if (parts[1].Trim().ToUpperInvariant() == "DELETE")
-                Config.Admins.Remove(parts[2].Trim().ToUpperInvariant());
-            else
-                return;
-            SaveConfig();
+            var strings = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var result = strings.DispatchCommand(
+                ("timezone list", _commands.TimeZoneIdsList), 
+                ("timezone file", _commands.TimeZoneIdsWriteToFile),
+                ("admin add", _commands.AdminAdd),
+                ("admin delete", _commands.AdminDelete),
+                ("admin list", _commands.AdminList));
+            return result;
         }
 
         private static void MessageLoop(CancellationToken token)
@@ -123,12 +124,14 @@ namespace BirthdayBot
             {
                 Console.WriteLine("Exiting");
             }
+
+            OnExit();
             Environment.Exit(0); // exit without waiting for the blocked ReadLine() in Start()
         }
 
         private static void ResetAlertsIfNewDay(DateTime dateLocalTime)
         {
-            if (!IsResetTime(dateLocalTime, _lastResetDateLocalTime)) 
+            if (!IsResetTime(dateLocalTime, _lastResetDateLocalTime))
                 return;
             Console.WriteLine("New day: resetting alerts");
             _birthdays.ResetAlerts();
@@ -148,8 +151,8 @@ namespace BirthdayBot
             Config = JsonHelper.DeserializeFile(ConfigFile, new BirthdayConfig
             {
                 MessageLoopSleepTimeMs = 5000,
-                Token = "Unknown",
-                ChatId = "Unknown",
+                Token = "Enter your token here",
+                ChatId = "Enter your chat id here",
                 TimeZoneId = "Central European Standard Time",
                 LastResetDateLocalTime = DateTime.MinValue,
                 Admins = new List<string>()
@@ -157,10 +160,12 @@ namespace BirthdayBot
             _timeZoneId = Config.TimeZoneId;
             _tz = TimeZoneInfo.FindSystemTimeZoneById(Config.TimeZoneId);
             _lastResetDateLocalTime = Config.LastResetDateLocalTime;
+            _adminManager = new AdminManager(Config.Admins);
+            _commands = new Commands(_adminManager);
         }
 
 
-        private static void SaveConfig()
+        public static void SaveConfig()
         {
             JsonHelper.SerializeToFile(ConfigFile,
                 new BirthdayConfig
@@ -170,18 +175,27 @@ namespace BirthdayBot
                     ChatId = Config.ChatId,
                     TimeZoneId = _timeZoneId,
                     LastResetDateLocalTime = _lastResetDateLocalTime,
-                    Admins = Config.Admins
+                    Admins = _adminManager.List().ToList()
                 });
         }
-        
+
 
         public static void OnExit()
         {
-            foreach (var handler in _exitHandlers)
+            lock (Lock)
+            {
+                if (_onExitCalled)
+                {
+                    return;
+                }
+
+                _onExitCalled = true;
+            }
+            foreach (var handler in ExitHandlers)
             {
                 handler.OnExit();
             }
-            
+
             SaveConfig();
             _cts.Cancel();
             _cts.Dispose();

@@ -2,21 +2,26 @@
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
-using BirthdayBot.Models;
+using BirthdayBot.Extensions;
+using BirthdayBot.Interfaces;
+using BirthdayBot.IO;
+using BirthdayBot.Telegram.Models;
 
-namespace BirthdayBot
+namespace BirthdayBot.Telegram
 {
     public class TelegramMessageHandler : IMessageHandler, IExitHandler
     {
         private readonly TelegramApi _telegramApi;
         private readonly Birthdays _birthdays;
+        private readonly IAdminManager _adminManager;
         private readonly LimitedStore<int> _storedIds;
 
-        public TelegramMessageHandler(TelegramApi telegramApi, Birthdays birthdays)
+        public TelegramMessageHandler(TelegramApi telegramApi, Birthdays birthdays, IAdminManager adminManager)
         {
             _storedIds = JsonHelper.DeserializeFile("messages.json", new LimitedStore<int>(25));
             _telegramApi = telegramApi;
             _birthdays = birthdays;
+            _adminManager = adminManager;
         }
 
         public void HandleMessage(string message)
@@ -47,18 +52,16 @@ namespace BirthdayBot
                     ListCommands();
                     break;
                 case "/BIRTHQUIT":
-                    if (!IsAdmin(m))
+                    if (!IsAdmin(m.Message.User.Username))
                         break;
                     _telegramApi.Send("Exiting BirthdayBot");
                     Program.OnExit();
                     break;
                 case "/BIRTHADD":
-                    if (!IsAdmin(m))
-                        break;
-                    AddBirthday(parts);
+                    AddBirthday(parts, m.Message.User.Username);
                     break;
                 case "/BIRTHDELETE":
-                    if (!IsAdmin(m))
+                    if (!IsAdmin(m.Message.User.Username))
                         break;
                     DeleteBirthday(parts);
                     break;
@@ -68,9 +71,9 @@ namespace BirthdayBot
             }
         }
 
-        private static bool IsAdmin(TelegramUpdate m)
+        private bool IsAdmin(string username)
         {
-            return Program.Config.Admins.Contains(m.Message.User.Username?.ToUpperInvariant().Trim() ?? "");
+            return _adminManager.IsAdmin(username);
         }
 
         /// <summary>
@@ -93,7 +96,7 @@ namespace BirthdayBot
                 "-Command list-",
                 "List commands: /birthcommands",
                 "List birthdays: /birthlist",
-                "Add birthday [admin]: /birthadd name MM-dd",
+                "Add birthday [admin when adding others]: /birthadd name MM-dd",
                 "Delete birthday [admin]: /birthdelete name",
                 "Quit BirthdayBot [admin]: /birthquit"
             };
@@ -126,17 +129,24 @@ namespace BirthdayBot
         /// <summary>
         /// Handles messages like /birthadd name 01-05
         /// </summary>
-        private void AddBirthday(string[] parts)
+        private void AddBirthday(string[] parts, string senderUsername)
         {
             try
             {
-                var name = parts[1].Trim();
-                var birthdate = parts[2].Trim();
+                var nameToAdd = parts[1].Trim();
+                if (IsAdmin(senderUsername) || string.Equals(nameToAdd, senderUsername, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    var birthdate = parts[2].Trim();
 
-                var birthday = new Birthday(name,
-                    DateTime.ParseExact(birthdate, "MM-dd", DateTimeFormatInfo.InvariantInfo));
-                _birthdays.Add(birthday);
-                _telegramApi.Send($"Birthday added: {name} on {birthday.Date:MM-dd}");
+                    var birthday = new Birthday(nameToAdd,
+                        DateTime.ParseExact(birthdate, "MM-dd", DateTimeFormatInfo.InvariantInfo));
+                    _birthdays.Add(birthday);
+                    _telegramApi.Send($"Birthday added: {nameToAdd} on {birthday.Date:MM-dd}");
+                }
+                else if (!IsAdmin(senderUsername))
+                {
+                    _telegramApi.Send("You need to be an admin to add someone else");
+                }
             }
             catch
             {

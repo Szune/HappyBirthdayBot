@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace BirthdayBot.Models
+namespace BirthdayBot.Telegram.Models
 {
     public class TelegramUpdateDto
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BirthdayBot
+namespace BirthdayBot.Extensions
 {
     public static class DateTimeExtensions
     {

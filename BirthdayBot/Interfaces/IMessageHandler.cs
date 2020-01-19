@@ -1,4 +1,4 @@
-﻿namespace BirthdayBot
+﻿namespace BirthdayBot.Interfaces
 {
     public interface IMessageHandler
     {

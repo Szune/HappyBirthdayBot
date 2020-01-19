@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace BirthdayBot.Models
+namespace BirthdayBot.Telegram.Models
 {
     public class TelegramUpdate
     {

@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using BirthdayBot.Interfaces;
 
-namespace BirthdayBot
+namespace BirthdayBot.Telegram
 {
     public class TelegramApi : IMessagingApi
     {

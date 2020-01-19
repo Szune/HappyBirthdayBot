@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BirthdayBot
+namespace BirthdayBot.JsonConverters
 {
     public class DateTimeConverter : JsonConverter<DateTime>
     {
