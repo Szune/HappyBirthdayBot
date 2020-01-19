@@ -29,11 +29,11 @@ namespace BirthdayBot
             }
         }
 
-        public void CongratulateTheUngratulated(DateTime date)
+        public void CongratulateTheUngratulated(DateTime date, string messageTemplate)
         {
             foreach (var birth in _birthdays.Where(birth => IsBirthday(date, birth)))
             {
-                if (_messagingApi.Send($"Happy birthday, @{birth.Human}!"))
+                if (_messagingApi.Send(messageTemplate.Replace("{user}", $"@{birth.Human}")))
                 {
                     birth.SetAlert();
                     Save();

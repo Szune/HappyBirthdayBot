@@ -33,3 +33,5 @@ Change ```TimeZoneId``` in config.json
 
 #### Setting up the bot
 Edit the ```Token``` and ```ChatId``` properties in config.json to your bot token and the chat id of the chat you wish to use the bot in.
+
+Edit ```MessageTemplate``` to change the message, all occurrences of ```{user}``` will be replaced by @username

@@ -111,7 +111,7 @@ namespace BirthdayBot
                     token.ThrowIfCancellationRequested();
                     var date = DateTime.UtcNow.ToTimeZone(_tz);
                     ResetAlertsIfNewDay(date);
-                    _birthdays.CongratulateTheUngratulated(date);
+                    _birthdays.CongratulateTheUngratulated(date, Config.MessageTemplate);
                     _messagingApi.Fetch();
                     token.WaitHandle.WaitOne(Config.MessageLoopSleepTimeMs);
                 }
@@ -151,6 +151,7 @@ namespace BirthdayBot
             Config = JsonHelper.DeserializeFile(ConfigFile, new BirthdayConfig
             {
                 MessageLoopSleepTimeMs = 5000,
+                MessageTemplate = "Happy birthday, {user}!",
                 Token = "Enter your token here",
                 ChatId = "Enter your chat id here",
                 TimeZoneId = "Central European Standard Time",
@@ -171,6 +172,7 @@ namespace BirthdayBot
                 new BirthdayConfig
                 {
                     MessageLoopSleepTimeMs = Config.MessageLoopSleepTimeMs,
+                    MessageTemplate = Config.MessageTemplate,
                     Token = Config.Token,
                     ChatId = Config.ChatId,
                     TimeZoneId = _timeZoneId,
