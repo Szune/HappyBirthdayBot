@@ -22,15 +22,19 @@ namespace BirthdayBot.Telegram
         {
             try
             {
+                var url = $"https://api.telegram.org/bot{_token}/sendMessage?chat_id={_chatId}&text={s}";
                 var result = _client
-                    .GetAsync($"https://api.telegram.org/bot{_token}/sendMessage?chat_id={_chatId}&text={s}").Result;
+                    .GetAsync(url).Result;
                 if (result.IsSuccessStatusCode)
                     return true;
+                var msg = result.Content.ReadAsStringAsync().Result;
+                Console.WriteLine($"[TelegramApi] Sent {url}");
+                Console.WriteLine($"[TelegramApi] Received status code {result.StatusCode} on send: {msg}");
                 return false;
             }
             catch (HttpRequestException e)
             {
-                Console.WriteLine($"[TelegramApi]: Failed to send request: {e}");
+                Console.WriteLine($"[TelegramApi] Failed to send request: {e}");
                 return false;
             }
         }
@@ -57,12 +61,12 @@ namespace BirthdayBot.Telegram
                 }
                 else
                 {
-                    Console.WriteLine($"[TelegramApi]: Failed to fetch messages: {result.StatusCode}");
+                    Console.WriteLine($"[TelegramApi] Failed to fetch messages: {result.StatusCode}");
                 }
             }
             catch (HttpRequestException e)
             {
-                Console.WriteLine($"[TelegramApi]: Failed to fetch messages: {e}");
+                Console.WriteLine($"[TelegramApi] Failed to fetch messages: {e}");
             }
         }
     }

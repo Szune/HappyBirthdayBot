@@ -45,23 +45,29 @@ namespace BirthdayBot.Telegram
 
         private void HandleNewMessage(TelegramUpdate m)
         {
-            var parts = m.Message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var user = m?.Message?.User?.Username ?? "";
+            var msg = m?.Message?.Text ?? "";
+            var parts = msg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 1)
+            {
+                return;
+            }
             switch (parts[0].Trim().ToUpperInvariant())
             {
                 case "/BIRTHCOMMANDS":
                     ListCommands();
                     break;
                 case "/BIRTHQUIT":
-                    if (!IsAdmin(m.Message.User.Username))
+                    if (!IsAdmin(user))
                         break;
                     _telegramApi.Send("Exiting BirthdayBot");
                     Program.OnExit();
                     break;
                 case "/BIRTHADD":
-                    AddBirthday(parts, m.Message.User.Username);
+                    AddBirthday(parts, user);
                     break;
                 case "/BIRTHDELETE":
-                    if (!IsAdmin(m.Message.User.Username))
+                    if (!IsAdmin(user))
                         break;
                     DeleteBirthday(parts);
                     break;
@@ -134,13 +140,14 @@ namespace BirthdayBot.Telegram
             try
             {
                 var nameToAdd = parts[1].Trim();
-                if (IsAdmin(senderUsername) || string.Equals(nameToAdd, senderUsername, StringComparison.InvariantCultureIgnoreCase))
+                if (IsAdmin(senderUsername) || 
+                    string.Equals(nameToAdd, senderUsername, StringComparison.InvariantCultureIgnoreCase))
                 {
                     var birthdate = parts[2].Trim();
 
                     var birthday = new Birthday(nameToAdd,
                         DateTime.ParseExact(birthdate, "MM-dd", DateTimeFormatInfo.InvariantInfo));
-                    _birthdays.Add(birthday);
+                    _birthdays.AddOrUpdate(birthday);
                     _telegramApi.Send($"Birthday added: {nameToAdd} on {birthday.Date:MM-dd}");
                 }
                 else if (!IsAdmin(senderUsername))

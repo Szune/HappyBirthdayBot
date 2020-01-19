@@ -69,9 +69,18 @@ namespace BirthdayBot
             Save();
         }
 
-        public void Add(Birthday birthday)
+        public void AddOrUpdate(Birthday birthday)
         {
-            _birthdays.Add(birthday);
+            var index = _birthdays.FindIndex(b =>
+                string.Equals(b.Human, birthday.Human, StringComparison.InvariantCultureIgnoreCase));
+            if (index > -1)
+            {
+                _birthdays[index] = birthday;
+            }
+            else
+            {
+                _birthdays.Add(birthday);
+            }
             Save();
         }
 
